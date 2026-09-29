@@ -39,19 +39,35 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. LECTURA DE DATOS
+# 3. LECTURA BLINDADA DE DATOS
 @st.cache_data
 def cargar_datos():
+    nombres_posibles = ['THE PLAYERS.xlsm', 'THE PLAYERS.xlsx', 'The Players.xlsm', 'the players.xlsm', 'THE_PLAYERS.xlsm']
+    archivo_encontrado = None
+    for nombre in nombres_posibles:
+        if os.path.exists(nombre):
+            archivo_encontrado = nombre
+            break
+            
+    if not archivo_encontrado:
+        for f in os.listdir('.'):
+            if f.endswith(('.xlsm', '.xlsx', '.xls')) and 'live' not in f.lower() and 'temp' not in f.lower():
+                archivo_encontrado = f
+                break
+                
+    if not archivo_encontrado:
+        return pd.DataFrame(), "No se encontró el archivo de jugadores (THE PLAYERS.xlsm)."
+        
     try:
-        df = pd.read_excel('THE PLAYERS.xlsm', sheet_name='Indices', header=5)
+        df = pd.read_excel(archivo_encontrado, sheet_name='Indices', header=5)
         df.columns = df.columns.str.strip()
         df_validos = df.dropna(subset=['Nombre', 'Apellidos']).copy()
         df_validos['Handicap_Juego'] = pd.to_numeric(df_validos['Handicap_Juego'], errors='coerce').fillna(0)
-        return df_validos.head(44)
-    except:
-        return pd.DataFrame()
+        return df_validos.head(44), None
+    except Exception as e:
+        return pd.DataFrame(), f"Error al leer el archivo: {e}"
 
-df_jugadores = cargar_datos()
+df_jugadores, error_msj = cargar_datos()
 
 # 4. CREACIÓN DE PESTAÑAS
 tab_sorteo, tab_leaderboard = st.tabs(["🎲 SORTEO Y EMPAREJAMIENTO", "📱 LEADERBOARD EN VIVO"])
@@ -60,8 +76,8 @@ tab_sorteo, tab_leaderboard = st.tabs(["🎲 SORTEO Y EMPAREJAMIENTO", "📱 LEA
 # PESTAÑA 1: EMPAREJAMIENTO
 # ==========================================
 with tab_sorteo:
-    if len(df_jugadores) < 44:
-        st.warning(f"⚠️ Se necesitan 44 jugadores. Solo se encontraron {len(df_jugadores)} en la lista.")
+    if error_msj or len(df_jugadores) < 44:
+        st.error(f"⚠️ {error_msj if error_msj else f'Se necesitan 44 jugadores. Solo se encontraron {len(df_jugadores)} en la lista.'}")
     else:
         df_leones = df_jugadores.iloc[:22].copy()
         df_toros = df_jugadores.iloc[22:44].copy()
@@ -84,8 +100,10 @@ with tab_sorteo:
             promedio = (j1['Handicap_Juego'] + j2['Handicap_Juego']) / 2
             return int((promedio * 0.7) + 0.5)
 
+        archivo_digitador = "Live_Scoring_President.xlsx"
+
         # ----------------------------------------------------
-        # OPCIÓN 1: 1ª JORNADA - FOUR BALL (AUTOMÁTICO)
+        # OPCIÓN 1: FOUR BALL AUTOMÁTICO
         # ----------------------------------------------------
         if tipo_jornada == "1ª Jornada: Four Ball (Sorteo Automático)":
             with st.sidebar:
@@ -117,44 +135,32 @@ with tab_sorteo:
                 for i in range(11):
                     p_l = parejas_leones[i]
                     p_t = parejas_toros[i]
-                    
                     datos_exportar.append({
-                        "Match": f"Match {i+1}",
-                        "Tipo": "Four Ball",
-                        "Participante_Leones": f"{p_l['j1']['Nombre']} & {p_l['j2']['Nombre']}",
-                        "HCP_L": p_l['hcp_equipo'],
-                        "Participante_Toros": f"{p_t['j1']['Nombre']} & {p_t['j2']['Nombre']}",
-                        "HCP_T": p_t['hcp_equipo'],
+                        "Match": f"Match {i+1}", "Tipo": "Four Ball",
+                        "Participante_Leones": f"{p_l['j1']['Nombre']} & {p_l['j2']['Nombre']}", "HCP_L": p_l['hcp_equipo'],
+                        "Participante_Toros": f"{p_t['j1']['Nombre']} & {p_t['j2']['Nombre']}", "HCP_T": p_t['hcp_equipo'],
                         "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""
                     })
-                    
                     st.markdown(f"""
                     <div class='match-card'>
                         <div class='match-num'>Match {i+1}</div>
-                        <div class='team-box-l'>🔴 <span class='team-name'>{p_l['j1']['Nombre']} / {p_l['j2']['Nombre']}</span> <span class='badge-hcp'>HCP Pareja: {p_l['hcp_equipo']}</span></div>
-                        <div class='team-box-t'>🔵 <span class='team-name'>{p_t['j1']['Nombre']} / {p_t['j2']['Nombre']}</span> <span class='badge-hcp'>HCP Pareja: {p_t['hcp_equipo']}</span></div>
+                        <div class='team-box-l'>🔴 <span class='team-name'>{p_l['j1']['Nombre']} / {p_l['j2']['Nombre']}</span> <span class='badge-hcp'>HCP: {p_l['hcp_equipo']}</span></div>
+                        <div class='team-box-t'>🔵 <span class='team-name'>{p_t['j1']['Nombre']} / {p_t['j2']['Nombre']}</span> <span class='badge-hcp'>HCP: {p_t['hcp_equipo']}</span></div>
                     </div>
                     """, unsafe_allow_html=True)
 
                 df_export = pd.DataFrame(datos_exportar)
-                archivo_digitador = "Live_Scoring_President.xlsx"
-                try:
-                    df_export.to_excel(archivo_digitador, index=False)
-                    st.success(f"✅ ¡Archivo **{archivo_digitador}** generado!")
-                except Exception as e:
-                    st.error(f"❌ Error al guardar: {e}")
+                df_export.to_excel(archivo_digitador, index=False)
+                st.session_state['archivo_listo'] = True
 
         # ----------------------------------------------------
-        # OPCIÓN 2: 1ª JORNADA - FOUR BALL (CAREO MANUAL CAPITANES)
+        # OPCIÓN 2: FOUR BALL CAREO MANUAL
         # ----------------------------------------------------
         elif tipo_jornada == "1ª Jornada: Four Ball (Careo Manual Capitanes)":
             st.markdown("<h3 style='text-align: center;'>🤝 1ª Jornada - Careo Manual (Four Ball)</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #666;'>Los capitanes eligen las 11 parejas enfrentadas. El hándicap se calcula con el 70% del promedio de la pareja.</p><br>", unsafe_allow_html=True)
-            
             dict_leones = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_leones.iterrows()}
             dict_toros = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_toros.iterrows()}
-            nombres_leones = list(dict_leones.keys())
-            nombres_toros = list(dict_toros.keys())
+            nombres_leones, nombres_toros = list(dict_leones.keys()), list(dict_toros.keys())
             
             datos_exportar_j1_manual = []
             form_j1 = st.form(key="form_jornada_1_manual")
@@ -163,51 +169,35 @@ with tab_sorteo:
                     st.markdown(f"**Match {i+1}**")
                     c1, c2 = st.columns(2)
                     with c1:
-                        jl1 = st.selectbox(f"León A - Match {i+1}", nombres_leones, index=(i*2) % len(nombres_leones), key=f"j1_l1_{i}")
-                        jl2 = st.selectbox(f"León B - Match {i+1}", nombres_leones, index=(i*2+1) % len(nombres_leones), key=f"j1_l2_{i}")
+                        jl1 = st.selectbox(f"León A - M{i+1}", nombres_leones, index=(i*2) % len(nombres_leones), key=f"j1_l1_{i}")
+                        jl2 = st.selectbox(f"León B - M{i+1}", nombres_leones, index=(i*2+1) % len(nombres_leones), key=f"j1_l2_{i}")
                     with c2:
-                        jt1 = st.selectbox(f"Toro A - Match {i+1}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"j1_t1_{i}")
-                        jt2 = st.selectbox(f"Toro B - Match {i+1}", nombres_toros, index=(i*2+1) % len(nombres_toros), key=f"j1_t2_{i}")
-                        
+                        jt1 = st.selectbox(f"Toro A - M{i+1}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"j1_t1_{i}")
+                        jt2 = st.selectbox(f"Toro B - M{i+1}", nombres_toros, index=(i*2+1) % len(nombres_toros), key=f"j1_t2_{i}")
                     j_l1, j_l2 = dict_leones[jl1], dict_leones[jl2]
                     j_t1, j_t2 = dict_toros[jt1], dict_toros[jt2]
-                    
-                    hcp_l_pareja = calcular_hcp_pareja(j_l1, j_l2)
-                    hcp_t_pareja = calcular_hcp_pareja(j_t1, j_t2)
-                    
                     datos_exportar_j1_manual.append({
-                        "Match": f"Match {i+1}",
-                        "Tipo": "Four Ball",
-                        "Participante_Leones": f"{j_l1['Nombre']} & {j_l2['Nombre']}",
-                        "HCP_L": hcp_l_pareja,
-                        "Participante_Toros": f"{j_t1['Nombre']} & {j_t2['Nombre']}",
-                        "HCP_T": hcp_t_pareja,
+                        "Match": f"Match {i+1}", "Tipo": "Four Ball",
+                        "Participante_Leones": f"{j_l1['Nombre']} & {j_l2['Nombre']}", "HCP_L": calcular_hcp_pareja(j_l1, j_l2),
+                        "Participante_Toros": f"{j_t1['Nombre']} & {j_t2['Nombre']}", "HCP_T": calcular_hcp_pareja(j_t1, j_t2),
                         "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""
                     })
                     st.markdown("---")
-                    
-                guardar_j1 = st.form_submit_button("💾 Guardar Careo 1ª Jornada y Generar Excel", type="primary", use_container_width=True)
+                guardar_j1 = st.form_submit_button("💾 Guardar Careo 1ª Jornada", type="primary", use_container_width=True)
                 
             if guardar_j1:
                 df_export = pd.DataFrame(datos_exportar_j1_manual)
-                archivo_digitador = "Live_Scoring_President.xlsx"
-                try:
-                    df_export.to_excel(archivo_digitador, index=False)
-                    st.success(f"✅ ¡Careo de 1ª Jornada guardado! Archivo **{archivo_digitador}** listo.")
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                df_export.to_excel(archivo_digitador, index=False)
+                st.session_state['archivo_listo'] = True
 
         # ----------------------------------------------------
-        # OPCIÓN 3: 2ª JORNADA - MATCH PLAY INDIVIDUAL (22 PUNTOS)
+        # OPCIÓN 3: 2ª JORNADA MATCH PLAY INDIVIDUAL
         # ----------------------------------------------------
         else:
             st.markdown("<h3 style='text-align: center;'>🤝 2ª Jornada - Careo Individual (22 Puntos)</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #666;'>Define los 4 jugadores de cada Foursome para disputar los 2 partidos individuales (70% HCP individual).</p><br>", unsafe_allow_html=True)
-            
             dict_leones = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_leones.iterrows()}
             dict_toros = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_toros.iterrows()}
-            nombres_leones = list(dict_leones.keys())
-            nombres_toros = list(dict_toros.keys())
+            nombres_leones, nombres_toros = list(dict_leones.keys()), list(dict_toros.keys())
             
             datos_exportar_j2 = []
             form_j2 = st.form(key="form_jornada_2")
@@ -221,34 +211,44 @@ with tab_sorteo:
                     with c2:
                         jt1 = st.selectbox(f"Toro 1 - F{i+1}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"j2_t1_{i}")
                         jt2 = st.selectbox(f"Toro 2 - F{i+1}", nombres_toros, index=(i*2+1) % len(nombres_toros), key=f"j2_t2_{i}")
-                        
                     j_l1, j_l2 = dict_leones[jl1], dict_leones[jl2]
                     j_t1, j_t2 = dict_toros[jt1], dict_toros[jt2]
-                    
-                    hcp_jl1, hcp_jt1 = calcular_hcp_individual(j_l1['Handicap_Juego']), calcular_hcp_individual(j_t1['Handicap_Juego'])
-                    hcp_jl2, hcp_jt2 = calcular_hcp_individual(j_l2['Handicap_Juego']), calcular_hcp_individual(j_t2['Handicap_Juego'])
-                    
-                    datos_exportar_j2.append({"Match": f"Match {i*2 + 1} (F{i+1}-A)", "Tipo": "Individual", "Participante_Leones": f"{j_l1['Nombre']} {j_l1['Apellidos']}", "HCP_L": hcp_jl1, "Participante_Toros": f"{j_t1['Nombre']} {j_t1['Apellidos']}", "HCP_T": hcp_jt1, "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""})
-                    datos_exportar_j2.append({"Match": f"Match {i*2 + 2} (F{i+1}-B)", "Tipo": "Individual", "Participante_Leones": f"{j_l2['Nombre']} {j_l2['Apellidos']}", "HCP_L": hcp_jl2, "Participante_Toros": f"{j_t2['Nombre']} {j_t2['Apellidos']}", "HCP_T": hcp_jt2, "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""})
+                    datos_exportar_j2.append({"Match": f"Match {i*2 + 1} (F{i+1}-A)", "Tipo": "Individual", "Participante_Leones": f"{j_l1['Nombre']} {j_l1['Apellidos']}", "HCP_L": calcular_hcp_individual(j_l1['Handicap_Juego']), "Participante_Toros": f"{j_t1['Nombre']} {j_t1['Apellidos']}", "HCP_T": calcular_hcp_individual(j_t1['Handicap_Juego']), "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""})
+                    datos_exportar_j2.append({"Match": f"Match {i*2 + 2} (F{i+1}-B)", "Tipo": "Individual", "Participante_Leones": f"{j_l2['Nombre']} {j_l2['Apellidos']}", "HCP_L": calcular_hcp_individual(j_l2['Handicap_Juego']), "Participante_Toros": f"{j_t2['Nombre']} {j_t2['Apellidos']}", "HCP_T": calcular_hcp_individual(j_t2['Handicap_Juego']), "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""})
                     st.markdown("---")
-                    
-                guardar_j2 = st.form_submit_button("💾 Guardar Careo 2ª Jornada y Generar Excel", type="primary", use_container_width=True)
+                guardar_j2 = st.form_submit_button("💾 Guardar Careo 2ª Jornada", type="primary", use_container_width=True)
                 
             if guardar_j2:
                 df_export = pd.DataFrame(datos_exportar_j2)
-                archivo_digitador = "Live_Scoring_President.xlsx"
-                try:
-                    df_export.to_excel(archivo_digitador, index=False)
-                    st.success(f"✅ ¡Careo de 2ª Jornada guardado! 22 partidos listos.")
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                df_export.to_excel(archivo_digitador, index=False)
+                st.session_state['archivo_listo'] = True
+
+        # BOTÓN DE DESCARGA DIRECTA PARA EL DIGITADOR
+        if os.path.exists(archivo_digitador):
+            st.success("✅ ¡Partidos y hándicaps calculados con éxito!")
+            with open(archivo_digitador, "rb") as f:
+                st.download_button(
+                    label="📥 Descargar Excel para el Digitador",
+                    data=f,
+                    file_name="Live_Scoring_President.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary"
+                )
 
 # ==========================================
-# PESTAÑA 2: LEADERBOARD MÓVIL ADAPTATIVO
+# PESTAÑA 2: LEADERBOARD EN VIVO CON SUBIDA DE EXCEL
 # ==========================================
 with tab_leaderboard:
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Panel de Subida de Archivo para el Digitador (Uploader en la Nube)
+    with st.expander("📤 Actualizar Resultados en Vivo (Subir Excel del Digitador)"):
+        archivo_subido = st.file_uploader("Sube el archivo Excel actualizado con los puntos anotados:", type=["xlsx", "xlsm"])
+        if archivo_subido is not None:
+            with open("Live_Scoring_President.xlsx", "wb") as f:
+                f.write(archivo_subido.getbuffer())
+            st.success("✅ ¡Marcador actualizado en tiempo real para todos los dispositivos!")
+
     c_ctrl1, c_ctrl2, c_ctrl3 = st.columns([2, 2, 2])
     with c_ctrl1:
         auto_update = st.toggle("🚀 Piloto Automático (8s)")
@@ -258,15 +258,13 @@ with tab_leaderboard:
         pts_previo_toros = st.number_input("Pts Previos - Toros", min_value=0.0, max_value=50.0, value=0.0, step=0.5)
         
     if not auto_update:
-        st.button("🔄 ACTUALIZAR", type="primary", use_container_width=True)
+        st.button("🔄 ACTUALIZAR MARCADOR", type="primary", use_container_width=True)
         
     archivo_digitador = "Live_Scoring_President.xlsx"
-    archivo_temp = "temp_live_scoring.xlsx"
     
     if os.path.exists(archivo_digitador):
         try:
-            shutil.copy(archivo_digitador, archivo_temp)
-            df_live = pd.read_excel(archivo_temp)
+            df_live = pd.read_excel(archivo_digitador)
             
             puntos_jornada_leones = 0.0
             puntos_jornada_toros = 0.0
@@ -358,9 +356,9 @@ with tab_leaderboard:
             """, unsafe_allow_html=True)
                 
         except Exception as e:
-            st.warning("⚠ Sincronizando datos...")
+            st.warning("⚠ Esperando datos del archivo...")
     else:
-        st.info("📌 Genera primero los emparejamientos en la pestaña anterior.")
+        st.info("📌 Genera primero los emparejamientos y descarga el Excel en la pestaña anterior.")
         
     if auto_update:
         time.sleep(8)
