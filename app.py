@@ -18,7 +18,6 @@ st.markdown("""
     .tv-title { color: white; font-family: 'Arial Black', sans-serif; font-size: 1.8rem; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
     .tv-subtitle { color: #c5a059; font-size: 1rem; margin: 5px 0 0 0; font-weight: bold; }
 
-    /* Tarjeta Responsiva para Celulares y TV */
     .match-card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 3px 8px rgba(0,0,0,0.12); border: 1px solid #e0e0e0; }
     .match-num { font-size: 0.8rem; color: #666; text-align: center; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
     
@@ -32,7 +31,6 @@ st.markdown("""
     .match-status-container { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; background: #f8f9fa; padding: 6px 12px; border-radius: 6px; }
     .status-badge { background-color: #002244; color: white; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.95rem; font-family: 'Courier New', monospace; }
     
-    /* Barra Inferior Acumulada Móvil / TV */
     .tv-footer-bar { display: flex; margin-top: 25px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-family: 'Arial Black', sans-serif; }
     .tv-footer-left { width: 50%; background-color: #cc0000; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
     .tv-footer-right { width: 50%; background-color: #0044cc; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-direction: row-reverse; }
@@ -72,15 +70,12 @@ with tab_sorteo:
             st.header("⚙️ Configuración")
             tipo_jornada = st.selectbox(
                 "Modalidad:",
-                ("1ª Jornada: Four Ball (Pareja 70%)", "2ª Jornada: Match Play Individual (22 Puntos)")
+                (
+                    "1ª Jornada: Four Ball (Sorteo Automático)", 
+                    "1ª Jornada: Four Ball (Careo Manual Capitanes)",
+                    "2ª Jornada: Match Play Individual (Careo / 22 Puntos)"
+                )
             )
-            
-            if "1ª Jornada" in tipo_jornada:
-                metodo_sorteo = st.radio("Método:", ("Por estricto orden de Hándicap", "Al azar (Balanceado)"))
-                ejecutar = st.button("🎲 Generar Partidos 1ª Jornada", type="primary", use_container_width=True)
-            else:
-                st.info("ℹ️ Define los 4 jugadores de cada Foursome para los 2 partidos individuales.")
-                ejecutar = True 
 
         def calcular_hcp_individual(hcp_base):
             return int((hcp_base * 0.7) + 0.5)
@@ -89,7 +84,14 @@ with tab_sorteo:
             promedio = (j1['Handicap_Juego'] + j2['Handicap_Juego']) / 2
             return int((promedio * 0.7) + 0.5)
 
-        if "1ª Jornada" in tipo_jornada:
+        # ----------------------------------------------------
+        # OPCIÓN 1: 1ª JORNADA - FOUR BALL (AUTOMÁTICO)
+        # ----------------------------------------------------
+        if tipo_jornada == "1ª Jornada: Four Ball (Sorteo Automático)":
+            with st.sidebar:
+                metodo_sorteo = st.radio("Método:", ("Por estricto orden de Hándicap", "Al azar (Balanceado)"))
+                ejecutar = st.button("🎲 Generar Partidos 1ª Jornada", type="primary", use_container_width=True)
+
             if ejecutar:
                 parejas_leones = []
                 parejas_toros = []
@@ -109,7 +111,7 @@ with tab_sorteo:
                     parejas_leones = sorted(parejas_leones, key=lambda x: x['hcp_equipo'])
                     parejas_toros = sorted(parejas_toros, key=lambda x: x['hcp_equipo'])
 
-                st.markdown("<h3 style='text-align: center;'>⛳ Partidos 1ª Jornada</h3>", unsafe_allow_html=True)
+                st.markdown(f"<h3 style='text-align: center;'>⛳ 1ª Jornada - Four Ball ({metodo_sorteo})</h3>", unsafe_allow_html=True)
                 datos_exportar = []
                 
                 for i in range(11):
@@ -129,8 +131,8 @@ with tab_sorteo:
                     st.markdown(f"""
                     <div class='match-card'>
                         <div class='match-num'>Match {i+1}</div>
-                        <div class='team-box-l'>🔴 <span class='team-name'>{p_l['j1']['Nombre']} / {p_l['j2']['Nombre']}</span> <span class='badge-hcp'>HCP: {p_l['hcp_equipo']}</span></div>
-                        <div class='team-box-t'>🔵 <span class='team-name'>{p_t['j1']['Nombre']} / {p_t['j2']['Nombre']}</span> <span class='badge-hcp'>HCP: {p_t['hcp_equipo']}</span></div>
+                        <div class='team-box-l'>🔴 <span class='team-name'>{p_l['j1']['Nombre']} / {p_l['j2']['Nombre']}</span> <span class='badge-hcp'>HCP Pareja: {p_l['hcp_equipo']}</span></div>
+                        <div class='team-box-t'>🔵 <span class='team-name'>{p_t['j1']['Nombre']} / {p_t['j2']['Nombre']}</span> <span class='badge-hcp'>HCP Pareja: {p_t['hcp_equipo']}</span></div>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -142,8 +144,65 @@ with tab_sorteo:
                 except Exception as e:
                     st.error(f"❌ Error al guardar: {e}")
 
-        else: # 2ª JORNADA: 22 PARTIDOS INDIVIDUALES
-            st.markdown("<h3 style='text-align: center;'>🤝 Careo Individual (22 Puntos)</h3>", unsafe_allow_html=True)
+        # ----------------------------------------------------
+        # OPCIÓN 2: 1ª JORNADA - FOUR BALL (CAREO MANUAL CAPITANES)
+        # ----------------------------------------------------
+        elif tipo_jornada == "1ª Jornada: Four Ball (Careo Manual Capitanes)":
+            st.markdown("<h3 style='text-align: center;'>🤝 1ª Jornada - Careo Manual (Four Ball)</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: #666;'>Los capitanes eligen las 11 parejas enfrentadas. El hándicap se calcula con el 70% del promedio de la pareja.</p><br>", unsafe_allow_html=True)
+            
+            dict_leones = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_leones.iterrows()}
+            dict_toros = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_toros.iterrows()}
+            nombres_leones = list(dict_leones.keys())
+            nombres_toros = list(dict_toros.keys())
+            
+            datos_exportar_j1_manual = []
+            form_j1 = st.form(key="form_jornada_1_manual")
+            with form_j1:
+                for i in range(11):
+                    st.markdown(f"**Match {i+1}**")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        jl1 = st.selectbox(f"León A - Match {i+1}", nombres_leones, index=(i*2) % len(nombres_leones), key=f"j1_l1_{i}")
+                        jl2 = st.selectbox(f"León B - Match {i+1}", nombres_leones, index=(i*2+1) % len(nombres_leones), key=f"j1_l2_{i}")
+                    with c2:
+                        jt1 = st.selectbox(f"Toro A - Match {i+1}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"j1_t1_{i}")
+                        jt2 = st.selectbox(f"Toro B - Match {i+1}", nombres_toros, index=(i*2+1) % len(nombres_toros), key=f"j1_t2_{i}")
+                        
+                    j_l1, j_l2 = dict_leones[jl1], dict_leones[jl2]
+                    j_t1, j_t2 = dict_toros[jt1], dict_toros[jt2]
+                    
+                    hcp_l_pareja = calcular_hcp_pareja(j_l1, j_l2)
+                    hcp_t_pareja = calcular_hcp_pareja(j_t1, j_t2)
+                    
+                    datos_exportar_j1_manual.append({
+                        "Match": f"Match {i+1}",
+                        "Tipo": "Four Ball",
+                        "Participante_Leones": f"{j_l1['Nombre']} & {j_l2['Nombre']}",
+                        "HCP_L": hcp_l_pareja,
+                        "Participante_Toros": f"{j_t1['Nombre']} & {j_t2['Nombre']}",
+                        "HCP_T": hcp_t_pareja,
+                        "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""
+                    })
+                    st.markdown("---")
+                    
+                guardar_j1 = st.form_submit_button("💾 Guardar Careo 1ª Jornada y Generar Excel", type="primary", use_container_width=True)
+                
+            if guardar_j1:
+                df_export = pd.DataFrame(datos_exportar_j1_manual)
+                archivo_digitador = "Live_Scoring_President.xlsx"
+                try:
+                    df_export.to_excel(archivo_digitador, index=False)
+                    st.success(f"✅ ¡Careo de 1ª Jornada guardado! Archivo **{archivo_digitador}** listo.")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+
+        # ----------------------------------------------------
+        # OPCIÓN 3: 2ª JORNADA - MATCH PLAY INDIVIDUAL (22 PUNTOS)
+        # ----------------------------------------------------
+        else:
+            st.markdown("<h3 style='text-align: center;'>🤝 2ª Jornada - Careo Individual (22 Puntos)</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: #666;'>Define los 4 jugadores de cada Foursome para disputar los 2 partidos individuales (70% HCP individual).</p><br>", unsafe_allow_html=True)
             
             dict_leones = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_leones.iterrows()}
             dict_toros = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_toros.iterrows()}
@@ -155,10 +214,13 @@ with tab_sorteo:
             with form_j2:
                 for i in range(11):
                     st.markdown(f"**Foursome {i+1}**")
-                    jl1 = st.selectbox(f"León 1 - F{i+1}", nombres_leones, index=(i*2) % len(nombres_leones), key=f"j2_l1_{i}")
-                    jl2 = st.selectbox(f"León 2 - F{i+1}", nombres_leones, index=(i*2+1) % len(nombres_leones), key=f"j2_l2_{i}")
-                    jt1 = st.selectbox(f"Toro 1 - F{i+1}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"j2_t1_{i}")
-                    jt2 = st.selectbox(f"Toro 2 - F{i+1}", nombres_toros, index=(i*2+1) % len(nombres_toros), key=f"j2_t2_{i}")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        jl1 = st.selectbox(f"León 1 - F{i+1}", nombres_leones, index=(i*2) % len(nombres_leones), key=f"j2_l1_{i}")
+                        jl2 = st.selectbox(f"León 2 - F{i+1}", nombres_leones, index=(i*2+1) % len(nombres_leones), key=f"j2_l2_{i}")
+                    with c2:
+                        jt1 = st.selectbox(f"Toro 1 - F{i+1}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"j2_t1_{i}")
+                        jt2 = st.selectbox(f"Toro 2 - F{i+1}", nombres_toros, index=(i*2+1) % len(nombres_toros), key=f"j2_t2_{i}")
                         
                     j_l1, j_l2 = dict_leones[jl1], dict_leones[jl2]
                     j_t1, j_t2 = dict_toros[jt1], dict_toros[jt2]
@@ -170,14 +232,14 @@ with tab_sorteo:
                     datos_exportar_j2.append({"Match": f"Match {i*2 + 2} (F{i+1}-B)", "Tipo": "Individual", "Participante_Leones": f"{j_l2['Nombre']} {j_l2['Apellidos']}", "HCP_L": hcp_jl2, "Participante_Toros": f"{j_t2['Nombre']} {j_t2['Apellidos']}", "HCP_T": hcp_jt2, "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""})
                     st.markdown("---")
                     
-                guardar_j2 = st.form_submit_button("💾 Guardar Careo y Generar Excel", type="primary", use_container_width=True)
+                guardar_j2 = st.form_submit_button("💾 Guardar Careo 2ª Jornada y Generar Excel", type="primary", use_container_width=True)
                 
             if guardar_j2:
                 df_export = pd.DataFrame(datos_exportar_j2)
                 archivo_digitador = "Live_Scoring_President.xlsx"
                 try:
                     df_export.to_excel(archivo_digitador, index=False)
-                    st.success(f"✅ ¡Careo guardado con éxito!")
+                    st.success(f"✅ ¡Careo de 2ª Jornada guardado! 22 partidos listos.")
                 except Exception as e:
                     st.error(f"❌ Error: {e}")
 
