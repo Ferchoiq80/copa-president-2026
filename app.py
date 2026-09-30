@@ -67,11 +67,12 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# CONEXIÓN A GOOGLE SHEETS (LEYENDO EL ARCHIVO CREDENTIALS.JSON LOCAL)
+# CONEXIÓN A GOOGLE SHEETS DESDE STREAMLIT SECRETS
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Copa President Live").sheet1
         return sheet
