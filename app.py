@@ -32,7 +32,7 @@ st.markdown("""
     .match-status-container { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; background: #f8f9fa; padding: 6px 12px; border-radius: 6px; }
     .status-badge { background-color: #002244; color: white; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.95rem; font-family: 'Courier New', monospace; }
     
-    .tv-footer-bar { display: flex; margin-top: 25px; border-radius: st; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-family: 'Arial Black', sans-serif; }
+    .tv-footer-bar { display: flex; margin-top: 25px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-family: 'Arial Black', sans-serif; }
     .tv-footer-left { width: 50%; background-color: #cc0000; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
     .tv-footer-right { width: 50%; background-color: #0044cc; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-direction: row-reverse; }
     
@@ -40,7 +40,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. CONEXIÓN A GOOGLE SHEETS Y LECTURA DE DATOS LOCALES
+# 3. LECTURA DE DATOS LOCALES (JUGADORES)
 @st.cache_data
 def cargar_datos():
     nombres_posibles = ['THE PLAYERS.xlsm', 'THE PLAYERS.xlsx', 'The Players.xlsm', 'the players.xlsm', 'THE_PLAYERS.xlsm']
@@ -67,18 +67,17 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# Función auxiliar para conectar a Google Sheets mediante Streamlit Secrets
+# CONEXIÓN A GOOGLE SHEETS (CON REPORTE DE ERROR TÉCNICO DETALLADO)
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        # Lee las credenciales seguras desde los secretos de Streamlit Cloud
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
-        # Abre la hoja de cálculo por su nombre exacto
         sheet = client.open("Copa President Live").sheet1
         return sheet
     except Exception as e:
+        st.error(f"⚠ Detalle técnico del error de Google: {e}")
         return None
 
 # 4. CREACIÓN DE PESTAÑAS
@@ -142,8 +141,6 @@ with tab_sorteo:
                 sheet.clear()
                 sheet.update([df_export.columns.values.tolist()] + df_export.values.tolist())
                 st.success("✅ ¡Partidos del Viernes sincronizados en Google Sheets correctamente!")
-            else:
-                st.error("❌ No se pudo conectar a Google Sheets. Revisa las credenciales en Streamlit Secrets.")
 
     # ----------------------------------------------------
     # SÁBADO: MATCH PLAY INDIVIDUAL
@@ -188,13 +185,11 @@ with tab_sorteo:
                     sheet.clear()
                     sheet.update([df_export.columns.values.tolist()] + df_export.values.tolist())
                     st.success("✅ ¡Partidos del Sábado sincronizados en Google Sheets!")
-                else:
-                    st.error("❌ Error al conectar con Google Sheets.")
         else:
             st.warning("⚠️ No se encontraron suficientes jugadores.")
 
 # ==========================================
-# PESTAÑA 2: LEADERBOARD EN VIVO (CONECTADO A GOOGLE SHEETS)
+# PESTAÑA 2: LEADERBOARD EN VIVO
 # ==========================================
 with tab_leaderboard:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -287,8 +282,6 @@ with tab_leaderboard:
                 st.info("📌 La hoja de Google Sheets está vacía. Carga las partidas en la pestaña anterior.")
         except Exception as e:
             st.warning("⚠ Esperando datos de Google Sheets...")
-    else:
-        st.info("📌 Configura las credenciales de Google Sheets para activar el enlace en vivo.")
         
     if auto_update:
         time.sleep(8)
