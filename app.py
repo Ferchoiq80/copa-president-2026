@@ -67,17 +67,31 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# CONEXIÓN A GOOGLE SHEETS EN LÍNEA (STREAMLIT SECRETS BLINDADA)
+# FUNCIÓN LIMPIADORA AUTOMÁTICA DE LA LLAVE PRIVADA (EVITA ERRORES PEM)
+def limpiar_private_key(pk):
+    if not pk:
+        return pk
+    pk = pk.strip('"\'')
+    pk = pk.replace('\\n', '\n').replace('\r\n', '\n')
+    lines = [line.strip() for line in pk.split('\n') if line.strip()]
+    
+    if not any(l.startswith('-----BEGIN') for l in lines):
+        lines.insert(0, '-----BEGIN PRIVATE KEY-----')
+    if not any(l.startswith('-----END') for l in lines):
+        lines.append('-----END PRIVATE KEY-----')
+        
+    return '\n'.join(lines) + '\n'
+
+# CONEXIÓN A GOOGLE SHEETS EN LÍNEA (CON SANITIZADOR DE CREDENCIALES)
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         
-        # Copiamos el diccionario de secretos
         creds_dict = dict(st.secrets["gcp_service_account"])
         
-        # Aseguramos que los saltos de línea de la llave privada se interpreten correctamente
+        # Limpieza estricta de la llave privada
         if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            creds_dict["private_key"] = limpiar_private_key(creds_dict["private_key"])
             
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
