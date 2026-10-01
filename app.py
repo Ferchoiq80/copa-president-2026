@@ -67,7 +67,7 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# CONEXIÓN A GOOGLE SHEETS DESDE STREAMLIT SECRETS
+# CONEXIÓN A GOOGLE SHEETS 100% ORIENTADA A LA NUBE (STREAMLIT SECRETS)
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
