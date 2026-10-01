@@ -67,11 +67,18 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# CONEXIÓN A GOOGLE SHEETS 100% ORIENTADA A LA NUBE (STREAMLIT SECRETS)
+# CONEXIÓN A GOOGLE SHEETS EN LÍNEA (STREAMLIT SECRETS BLINDADA)
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        
+        # Copiamos el diccionario de secretos
         creds_dict = dict(st.secrets["gcp_service_account"])
+        
+        # Aseguramos que los saltos de línea de la llave privada se interpreten correctamente
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Copa President Live").sheet1
