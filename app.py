@@ -10,7 +10,7 @@ from google.oauth2.service_account import Credentials
 # 1. CONFIGURACIÓN DE PÁGINA (WIDE MODE)
 st.set_page_config(page_title="Copa President - Live Leaderboard", page_icon="🏆", layout="wide")
 
-# 2. CSS ESTILO TV PROFESIONAL (CELDAS BLANCAS EN EMPATE, ROJO/AZUL AL GANAR)
+# 2. CSS ESTILO TV PROFESIONAL (BARRA DE ACUMULADOS ÚNICA Y LIMPIA)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -201,7 +201,7 @@ with tab_sorteo:
                     sheet.update([df_export.columns.values.tolist()] + df_export.values.tolist())
                     st.success("✅ ¡Partidos del Sábado sincronizados en Google Sheets!")
         else:
-            st.warning("⚠️ No se encontraron suficientes jugadores.")
+            st.warning("⚠️️ No se encontraron suficientes jugadores.")
 
 # ==========================================
 # PESTAÑA 2: LEADERBOARD EN VIVO (ESTILO TV PROFESIONAL)
@@ -278,7 +278,6 @@ with tab_leaderboard:
                         elif d6 < 0: 
                             toros_gana = True; badge_t_html = f"<span class='badge-advantage-right'>{int(abs(d6))} ▲</span>"
                     else:
-                        # Si no hay datos avanzados, validamos si se ingresó algún avance parcial o se mantiene en el hoyo 1
                         hoyo_display = "1"
                     
                     puntos_jornada_leones += pt_l
@@ -290,7 +289,7 @@ with tab_leaderboard:
                     jugador_toros = row['Participante_Toros']
                     hcp_t = row['HCP_T']
                     
-                    # Clases CSS dinámicas: Si van empatados (ninguno gana), ambas celdas se quedan en blanco normal
+                    # Clases CSS dinámicas
                     if leones_gana:
                         class_l = "cell-leones-win"
                         class_t = "cell-toros-normal"
@@ -338,6 +337,7 @@ with tab_leaderboard:
                 
                 st.markdown(tv_tables_html, unsafe_allow_html=True)
                 
+                # Única barra inferior de acumulados (se eliminó el duplicado)
                 st.markdown(f"""
                 <div class='tv-footer-bar'>
                     <div class='tv-footer-left'><span>LEONES</span><span>{f"{total_leones:.1f}".replace('.0', '')}</span></div>
