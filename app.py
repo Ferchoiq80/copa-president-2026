@@ -10,7 +10,7 @@ from google.oauth2.service_account import Credentials
 # 1. CONFIGURACIÓN DE PÁGINA (WIDE MODE)
 st.set_page_config(page_title="Copa President - Live Leaderboard", page_icon="🏆", layout="wide")
 
-# 2. CSS ESTILO TV PROFESIONAL (MATCHES EN FORMATO TABLA / SCORECARD)
+# 2. CSS ESTILO TV PROFESIONAL (COLORES DINÁMICOS Y FLECHAS DE VENTAJA)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -22,21 +22,31 @@ st.markdown("""
     .tv-subtitle { color: #c5a059; font-size: 1rem; margin: 5px 0 0 0; font-weight: bold; }
 
     /* CONTENEDOR TIPO TABLA TV */
-    .tv-match-table { display: table; width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); margin-bottom: 8px; font-family: 'Arial', sans-serif; }
+    .tv-match-table { display: table; width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 3px 8px rgba(0,0,0,0.12); margin-bottom: 8px; font-family: 'Arial', sans-serif; }
     
     .tv-row { display: table-row; }
     
-    /* LADO LEONES (ROJO) */
-    .tv-cell-leones { display: table-cell; width: 42%; background-color: #fdf2f2; border-left: 6px solid #cc0000; padding: 10px 14px; vertical-align: middle; color: #222; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #e0e0e0; }
-    
-    /* CENTRO (ESTADO / HOYO) */
-    .tv-cell-status { display: table-cell; width: 16%; background-color: #002244; color: white; text-align: center; vertical-align: middle; font-family: 'Courier New', monospace; font-weight: bold; font-size: 1rem; padding: 10px 6px; border-bottom: 1px solid #001122; letter-spacing: 1px; }
-    
-    /* LADO TOROS (AZUL) */
-    .tv-cell-toros { display: table-cell; width: 42%; background-color: #f0f5ff; border-right: 6px solid #0044cc; padding: 10px 14px; vertical-align: middle; color: #222; font-weight: bold; font-size: 0.95rem; text-align: right; border-bottom: 1px solid #e0e0e0; }
+    /* CELDA LEONES POR DEFECTO (BLANCA) */
+    .cell-leones-normal { display: table-cell; width: 42%; background-color: #ffffff; padding: 10px 14px; vertical-align: middle; color: #222; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #e0e0e0; border-left: 4px solid #cc0000; }
+    /* CELDA LEONES ACTIVA/GANANDO (ROJA COMPLETA) */
+    .cell-leones-win { display: table-cell; width: 42%; background-color: #cc0000; padding: 10px 14px; vertical-align: middle; color: #ffffff; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #b00000; border-left: 4px solid #800000; }
+
+    /* CELDA TOROS POR DEFECTO (BLANCA) */
+    .cell-toros-normal { display: table-cell; width: 42%; background-color: #ffffff; padding: 10px 14px; vertical-align: middle; color: #222; font-weight: bold; font-size: 0.95rem; text-align: right; border-bottom: 1px solid #e0e0e0; border-right: 4px solid #0044cc; }
+    /* CELDA TOROS ACTIVA/GANANDO (AZUL COMPLETA) */
+    .cell-toros-win { display: table-cell; width: 42%; background-color: #0044cc; padding: 10px 14px; vertical-align: middle; color: #ffffff; font-weight: bold; font-size: 0.95rem; text-align: right; border-bottom: 1px solid #003399; border-right: 4px solid #002080; }
+
+    /* CENTRO (ESTADO / HOYO O PUNTOS) */
+    .tv-cell-status { display: table-cell; width: 16%; background-color: #111111; color: #ffffff; text-align: center; vertical-align: middle; font-family: 'Arial Black', sans-serif; font-size: 1.1rem; padding: 10px 6px; border-bottom: 1px solid #000; letter-spacing: 1px; }
 
     .player-sub { font-size: 0.75rem; color: #666; font-weight: normal; float: right; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+    .player-sub-win { font-size: 0.75rem; color: #ffeb3b; font-weight: normal; float: right; background: rgba(0,0,0,0.2); padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+
     .player-sub-l { font-size: 0.75rem; color: #666; font-weight: normal; float: left; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+    .player-sub-l-win { font-size: 0.75rem; color: #ffeb3b; font-weight: normal; float: left; background: rgba(0,0,0,0.2); padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+
+    .badge-up { background-color: #000000; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; font-family: 'Arial Black', sans-serif; margin-left: 6px; }
+    .badge-up-win { background-color: #ffffff; color: #000000; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; font-family: 'Arial Black', sans-serif; margin-left: 6px; }
 
     .tv-footer-bar { display: flex; margin-top: 25px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-family: 'Arial Black', sans-serif; }
     .tv-footer-left { width: 50%; background-color: #cc0000; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
@@ -229,28 +239,48 @@ with tab_leaderboard:
                     l18 = pd.to_numeric(row.get('Leones_H18'), errors='coerce')
                     t18 = pd.to_numeric(row.get('Toros_H18'), errors='coerce')
                     
-                    status = "AS"
+                    status_text = "AS"
+                    hoyo_actual = "18"
                     pt_l = 0.0
                     pt_t = 0.0
+                    
+                    leones_gana = False
+                    toros_gana = False
                     
                     d6 = (l6 - t6) if pd.notna(l6) and pd.notna(t6) else None
                     d12 = (l12 - t12) if pd.notna(l12) and pd.notna(t12) else None
                     d18 = (l18 - t18) if pd.notna(l18) and pd.notna(t18) else None
                     
                     if d18 is not None:
-                        if d18 > 0: status = "L GANA"; pt_l = 1.0
-                        elif d18 < 0: status = "T GANA"; pt_t = 1.0
-                        else: status = "AS"; pt_l = 0.5; pt_t = 0.5
+                        hoyo_actual = "F"
+                        if d18 > 0: 
+                            status_text = "L GANA"; pt_l = 1.0; leones_gana = True
+                        elif d18 < 0: 
+                            status_text = "T GANA"; pt_t = 1.0; toros_gana = True
+                        else: 
+                            status_text = "AS"; pt_l = 0.5; pt_t = 0.5
                     elif d12 is not None:
-                        if d12 > 6: status = "L GANA"; pt_l = 1.0
-                        elif d12 < -6: status = "T GANA"; pt_t = 1.0
-                        elif d12 > 0: status = f"{int(d12)} UP"
-                        elif d12 < 0: status = f"{int(abs(d12))} UP"
-                        else: status = "AS"
+                        hoyo_actual = "12"
+                        if d12 > 6: 
+                            status_text = f"{int(d12)}&6"; pt_l = 1.0; leones_gana = True
+                        elif d12 < -6: 
+                            status_text = f"{int(abs(d12))}&6"; pt_t = 1.0; toros_gana = True
+                        elif d12 > 0: 
+                            status_text = f"{int(d12)}▲"; leones_gana = True
+                        elif d12 < 0: 
+                            status_text = f"{int(abs(d12))}▲"; toros_gana = True
+                        else: 
+                            status_text = "AS"
                     elif d6 is not None:
-                        if d6 > 0: status = f"{int(d6)} UP"
-                        elif d6 < 0: status = f"{int(abs(d6))} UP"
-                        else: status = "AS"
+                        hoyo_actual = "6"
+                        if d6 > 0: 
+                            status_text = f"{int(d6)}▲"; leones_gana = True
+                        elif d6 < 0: 
+                            status_text = f"{int(abs(d6))}▲"; toros_gana = True
+                        else: 
+                            status_text = "AS"
+                    else:
+                        hoyo_actual = "1"
                     
                     puntos_jornada_leones += pt_l
                     puntos_jornada_toros += pt_t
@@ -261,21 +291,37 @@ with tab_leaderboard:
                     jugador_toros = row['Participante_Toros']
                     hcp_t = row['HCP_T']
                     
-                    # Estructura de tabla profesional estilo TV
+                    # Clases CSS dinámicas para pintar de rojo o azul según quién vaya ganando
+                    if leones_gana:
+                        class_l = "cell-leones-win"
+                        class_t = "cell-toros-normal"
+                        sub_l_class = "player-sub-l-win"
+                        sub_t_class = "player-sub"
+                    elif toros_gana:
+                        class_l = "cell-leones-normal"
+                        class_t = "cell-toros-win"
+                        sub_l_class = "player-sub-l"
+                        sub_t_class = "player-sub-win"
+                    else:
+                        class_l = "cell-leones-normal"
+                        class_t = "cell-toros-normal"
+                        sub_l_class = "player-sub-l"
+                        sub_t_class = "player-sub"
+                    
                     tv_tables_html += f"""
                     <div style="font-size: 0.75rem; color: #555; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;">{match_name}</div>
                     <div class='tv-match-table'>
                         <div class='tv-row'>
-                            <div class='tv-cell-leones'>
+                            <div class='{class_l}'>
                                 {jugador_leones}
-                                <span class='player-sub-l'>HCP: {hcp_l}</span>
+                                <span class='{sub_l_class}'>HCP: {hcp_l}</span>
                             </div>
                             <div class='tv-cell-status'>
-                                {status}
+                                {hoyo_actual} <span style="font-size:0.85rem; color:#ffeb3b;">{status_text}</span>
                             </div>
-                            <div class='tv-cell-toros'>
+                            <div class='{class_t}'>
                                 {jugador_toros}
-                                <span class='player-sub'>HCP: {hcp_t}</span>
+                                <span class='{sub_t_class}'>HCP: {hcp_t}</span>
                             </div>
                         </div>
                     </div>
