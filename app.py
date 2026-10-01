@@ -10,7 +10,7 @@ from google.oauth2.service_account import Credentials
 # 1. CONFIGURACIÓN DE PÁGINA (WIDE MODE)
 st.set_page_config(page_title="Copa President - Live Leaderboard", page_icon="🏆", layout="wide")
 
-# 2. CSS ESTILO TV PROFESIONAL (BARRA DE ACUMULADOS ÚNICA Y LIMPIA)
+# 2. CSS ESTILO TV PROFESIONAL (MODO OSCURO COMPLETO Y TABLAS LIMPIAS)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -109,53 +109,72 @@ with tab_sorteo:
         tipo_jornada = st.selectbox(
             "Modalidad:",
             (
-                "Viernes: Four Ball Oficial (Según PDF Capitanes)", 
+                "Viernes: Four Ball (Selección de Parejas)", 
                 "Sábado: Match Play Individual (100% HCP)"
             )
         )
 
     # ----------------------------------------------------
-    # VIERNES: FOUR BALL OFICIAL
+    # VIERNES: FOUR BALL (SELECCIÓN DE PAREJAS)
     # ----------------------------------------------------
-    if tipo_jornada == "Viernes: Four Ball Oficial (Según PDF Capitanes)":
-        st.markdown("<h3 style='text-align: center;'>⛳ Viernes - Four Ball (Salidas Oficiales)</h3>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #666;'>Sincronización automática con Google Sheets.</p><br>", unsafe_allow_html=True)
+    if tipo_jornada == "Viernes: Four Ball (Selección de Parejas)":
+        st.markdown("<h3 style='text-align: center;'>⛳ Viernes - Four Ball (Emparejamiento por Parejas)</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #888;'>Selecciona las parejas de Leones y Toros para cada salida y envíalas a Google Sheets.</p><br>", unsafe_allow_html=True)
 
-        partidas_viernes = [
-            ("Hoyo 1 (Match 1)", "Moreno Vera, Edgar Fernando", 8, "Rincon Ramirez, Jose Oswaldo", 9, "Gutierrez Beltran, Wilson", 8, "Franco Rueda, Cesar Augusto", 8),
-            ("Hoyo 2A (Match 2)", "Moreno Vera, Luis Alberto", 7, "Peñaranda Canal, Miguel Enrique", 8, "Consuegra Morales, Juan Carlos", 3, "Hernadez, German", 6),
-            ("Hoyo 2B (Match 3)", "Peñaranda Gomez, Jairo", 9, "Peñaranda Arango, Juan Camilo", 14, "Parra Gomez, Luis Eduardo", 11, "Sanchez Reyes, Gladys Edelmira", 15),
-            ("Hoyo 3 (Match 4)", "Rubiano Perez, Laura Nadmiye", 11, "Bautista Ramirez, Jairo Jose", 12, "Vargas Gonzalez, Robiel Amed", 11, "Garcia Herreros, DuplatMiguel", 13),
-            ("Hoyo 4 (Match 5)", "Zerpa Albarran, Edgardo Jose", 13, "Carrillo Sepulveda, Victor Manuel", 15, "Contreras Gamboa, Jorge", 13, "Ortega Meneses, Roberto", 14),
-            ("Hoyo 5 (Match 6)", "Vargas Caceres, Elias Jesus", 18, "Alvarado Rodriguez, Lina Maria", 18, "Monsalve Andres, Andres", 13, "Suarez Castrillon, Zulma Janeth", 24),
-            ("Hoyo 6 (Match 7)", "Llanes Gomez, Juan pablo", 18, "Ballesteros Castellanos, Kelly Johanna", 23, "Schloeter Rebolledo, Johann Karl", 14, "Ardila Serrano, Fausto", 20),
-            ("Hoyo 7 (Match 8)", "Ramirez Vasquez, Jorge Eliecer", 20, "Porras Liendo, Eliana Marcela", 25, "Rangel Vera, Jaime", 20, "Goyeneche Montoya, Carlos", 22),
-            ("Hoyo 8A (Match 9)", "Suarez Castrillón, Fabio Orlando", 11, "Yañez Arellano, Oscar", 13, "Robledo Assaf, Cesar Eduardo", 11, "Giatsidakis Olivares, Juan Carlos", 12),
-            ("Hoyo 8B (Match 10)", "Cely Soler, Libardo Del Carmen", 11, "Mancera Basto, Edulfo Antonio", 15, "Santos Padilla, Jose Luis", 12, "Landazabal Molina, Sergio Alfonso", 15),
-            ("Hoyo 9 (Match 11)", "Ardila Reyes, Delmer", 11, "Mantilla Duran, Miguel Fabian", 12, "Florez Serrano, Elkin Gregorio", 8, "Galavis Correa, Sergio Andres", 9)
-        ]
+        if len(df_jugadores) >= 44:
+            df_leones = df_jugadores.iloc[:22].copy()
+            df_toros = df_jugadores.iloc[22:44].copy()
+            
+            dict_leones = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_leones.iterrows()}
+            dict_toros = {f"{row['Nombre']} {row['Apellidos']} (HCP: {int(row['Handicap_Juego'])})": row for _, row in df_toros.iterrows()}
+            nombres_leones = list(dict_leones.keys())
+            nombres_toros = list(dict_toros.keys())
 
-        datos_exportar_viernes = []
-        for salida_hoyo, l1_nom, l1_hcp, l2_nom, l2_hcp, t1_nom, t1_hcp, t2_nom, t2_hcp in partidas_viernes:
-            datos_exportar_viernes.append({
-                "Match": salida_hoyo, "Tipo": "Four Ball",
-                "Participante_Leones": f"{l1_nom} & {l2_nom}", "HCP_L": f"L1:{l1_hcp}, L2:{l2_hcp}",
-                "Participante_Toros": f"{t1_nom} & {t2_nom}", "HCP_T": f"T1:{t1_hcp}, T2:{t2_hcp}",
-                "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""
-            })
-            st.markdown(f"""
-            <div style='background:white; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #ddd;'>
-                <b>{salida_hoyo}</b> | 🔴 Leones: {l1_nom} & {l2_nom} vs 🔵 Toros: {t1_nom} & {t2_nom}
-            </div>
-            """, unsafe_allow_html=True)
+            hoyo_salidas = ["Hoyo 1 (Match 1)", "Hoyo 2A (Match 2)", "Hoyo 2B (Match 3)", "Hoyo 3 (Match 4)", 
+                            "Hoyo 4 (Match 5)", "Hoyo 5 (Match 6)", "Hoyo 6 (Match 7)", "Hoyo 7 (Match 8)", 
+                            "Hoyo 8A (Match 9)", "Hoyo 8B (Match 10)", "Hoyo 9 (Match 11)"]
 
-        if st.button("🚀 Enviar Salidas del Viernes a Google Sheets", type="primary", use_container_width=True):
-            df_export = pd.DataFrame(datos_exportar_viernes)
-            sheet = conectar_google_sheets()
-            if sheet:
-                sheet.clear()
-                sheet.update([df_export.columns.values.tolist()] + df_export.values.tolist())
-                st.success("✅ ¡Partidos del Viernes sincronizados en Google Sheets correctamente!")
+            datos_exportar_viernes = []
+            form_viernes = st.form(key="form_viernes")
+            with form_viernes:
+                for i, salida in enumerate(hoyo_salidas):
+                    st.markdown(f"**{salida}**")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.markdown("🔴 **Pareja Leones**")
+                        jl1 = st.selectbox(f"León 1 - {salida}", nombres_leones, index=(i*2) % len(nombres_leones), key=f"v_l1_{i}")
+                        jl2 = st.selectbox(f"León 2 - {salida}", nombres_leones, index=(i*2 + 1) % len(nombres_leones), key=f"v_l2_{i}")
+                    with c2:
+                        st.markdown("🔵 **Pareja Toros**")
+                        jt1 = st.selectbox(f"Toro 1 - {salida}", nombres_toros, index=(i*2) % len(nombres_toros), key=f"v_t1_{i}")
+                        jt2 = st.selectbox(f"Toro 2 - {salida}", nombres_toros, index=(i*2 + 1) % len(nombres_toros), key=f"v_t2_{i}")
+                    
+                    j_l1 = dict_leones[jl1]
+                    j_l2 = dict_leones[jl2]
+                    j_t1 = dict_toros[jt1]
+                    j_t2 = dict_toros[jt2]
+                    
+                    datos_exportar_viernes.append({
+                        "Match": salida, "Tipo": "Four Ball",
+                        "Participante_Leones": f"{j_l1['Nombre']} {j_l1['Apellidos']} & {j_l2['Nombre']} {j_l2['Apellidos']}", 
+                        "HCP_L": f"L1:{int(j_l1['Handicap_Juego'])}, L2:{int(j_l2['Handicap_Juego'])}",
+                        "Participante_Toros": f"{j_t1['Nombre']} {j_t1['Apellidos']} & {j_t2['Nombre']} {j_t2['Apellidos']}", 
+                        "HCP_T": f"T1:{int(j_t1['Handicap_Juego'])}, T2:{int(j_t2['Handicap_Juego'])}",
+                        "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""
+                    })
+                    st.markdown("---")
+                
+                guardar_viernes = st.form_submit_button("🚀 Enviar Partidos del Viernes a Google Sheets", type="primary", use_container_width=True)
+                
+            if guardar_viernes:
+                df_export = pd.DataFrame(datos_exportar_viernes)
+                sheet = conectar_google_sheets()
+                if sheet:
+                    sheet.clear()
+                    sheet.update([df_export.columns.values.tolist()] + df_export.values.tolist())
+                    st.success("✅ ¡Partidos y parejas del Viernes sincronizados en Google Sheets correctamente!")
+        else:
+            st.warning("⚠️ No se encontraron suficientes jugadores en el archivo local.")
 
     # ----------------------------------------------------
     # SÁBADO: MATCH PLAY INDIVIDUAL
@@ -201,7 +220,7 @@ with tab_sorteo:
                     sheet.update([df_export.columns.values.tolist()] + df_export.values.tolist())
                     st.success("✅ ¡Partidos del Sábado sincronizados en Google Sheets!")
         else:
-            st.warning("⚠️️ No se encontraron suficientes jugadores.")
+            st.warning("⚠️ No se encontraron suficientes jugadores.")
 
 # ==========================================
 # PESTAÑA 2: LEADERBOARD EN VIVO (ESTILO TV PROFESIONAL)
@@ -337,7 +356,6 @@ with tab_leaderboard:
                 
                 st.markdown(tv_tables_html, unsafe_allow_html=True)
                 
-                # Única barra inferior de acumulados (se eliminó el duplicado)
                 st.markdown(f"""
                 <div class='tv-footer-bar'>
                     <div class='tv-footer-left'><span>LEONES</span><span>{f"{total_leones:.1f}".replace('.0', '')}</span></div>
