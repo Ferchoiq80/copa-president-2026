@@ -10,35 +10,37 @@ from google.oauth2.service_account import Credentials
 # 1. CONFIGURACIÓN DE PÁGINA (WIDE MODE)
 st.set_page_config(page_title="Copa President - Live Leaderboard", page_icon="🏆", layout="wide")
 
-# 2. CSS ADAPTATIVO (DISEÑO MÓVIL Y TV RESPONSIVO)
+# 2. CSS ESTILO TV PROFESIONAL (MATCHES EN FORMATO TABLA / SCORECARD)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    .tv-header { background: linear-gradient(135deg, #001122, #002244); padding: 15px; border-radius: 10px; text-align: center; border-bottom: 4px solid #c5a059; margin-bottom: 20px; }
+    .tv-header { background: linear-gradient(135deg, #001122, #002244); padding: 15px; border-radius: 8px; text-align: center; border-bottom: 4px solid #c5a059; margin-bottom: 20px; }
     .tv-title { color: white; font-family: 'Arial Black', sans-serif; font-size: 1.8rem; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
     .tv-subtitle { color: #c5a059; font-size: 1rem; margin: 5px 0 0 0; font-weight: bold; }
 
-    .match-card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 3px 8px rgba(0,0,0,0.12); border: 1px solid #e0e0e0; }
-    .match-num { font-size: 0.8rem; color: #666; text-align: center; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
+    /* CONTENEDOR TIPO TABLA TV */
+    .tv-match-table { display: table; width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); margin-bottom: 8px; font-family: 'Arial', sans-serif; }
     
-    .team-box-l { background-color: #fff0f0; border-left: 5px solid #cc0000; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; }
-    .team-box-t { background-color: #f0f5ff; border-left: 5px solid #0044cc; padding: 8px 12px; border-radius: 6px; }
+    .tv-row { display: table-row; }
     
-    .team-name { font-weight: bold; font-size: 1rem; color: #222; }
-    .team-red { color: #cc0000; }
-    .team-blue { color: #0044cc; }
+    /* LADO LEONES (ROJO) */
+    .tv-cell-leones { display: table-cell; width: 42%; background-color: #fdf2f2; border-left: 6px solid #cc0000; padding: 10px 14px; vertical-align: middle; color: #222; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #e0e0e0; }
     
-    .match-status-container { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; background: #f8f9fa; padding: 6px 12px; border-radius: 6px; }
-    .status-badge { background-color: #002244; color: white; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.95rem; font-family: 'Courier New', monospace; }
+    /* CENTRO (ESTADO / HOYO) */
+    .tv-cell-status { display: table-cell; width: 16%; background-color: #002244; color: white; text-align: center; vertical-align: middle; font-family: 'Courier New', monospace; font-weight: bold; font-size: 1rem; padding: 10px 6px; border-bottom: 1px solid #001122; letter-spacing: 1px; }
     
-    .tv-footer-bar { display: flex; margin-top: 25px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-family: 'Arial Black', sans-serif; }
+    /* LADO TOROS (AZUL) */
+    .tv-cell-toros { display: table-cell; width: 42%; background-color: #f0f5ff; border-right: 6px solid #0044cc; padding: 10px 14px; vertical-align: middle; color: #222; font-weight: bold; font-size: 0.95rem; text-align: right; border-bottom: 1px solid #e0e0e0; }
+
+    .player-sub { font-size: 0.75rem; color: #666; font-weight: normal; float: right; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+    .player-sub-l { font-size: 0.75rem; color: #666; font-weight: normal; float: left; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+
+    .tv-footer-bar { display: flex; margin-top: 25px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-family: 'Arial Black', sans-serif; }
     .tv-footer-left { width: 50%; background-color: #cc0000; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
     .tv-footer-right { width: 50%; background-color: #0044cc; color: white; padding: 15px; font-size: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-direction: row-reverse; }
-    
-    .badge-hcp { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #555; float: right; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -69,18 +71,13 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# CONEXIÓN A GOOGLE SHEETS MEDIANTE DECODIFICACIÓN BASE64 (CERO ERRORES PEM)
+# CONEXIÓN A GOOGLE SHEETS MEDIANTE DECODIFICACIÓN BASE64
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        
-        # Lee la cadena Base64 desde los secretos de Streamlit
         b64_string = st.secrets["gcp_base64_json"]
-        
-        # Decodifica la cadena a JSON puro de manera limpia
         json_bytes = base64.b64decode(b64_string)
         creds_dict = json.loads(json_bytes.decode('utf-8'))
-        
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Copa President Live").sheet1
@@ -136,10 +133,8 @@ with tab_sorteo:
                 "Leones_H6": "", "Toros_H6": "", "Leones_H12": "", "Toros_H12": "", "Leones_H18": "", "Toros_H18": ""
             })
             st.markdown(f"""
-            <div class='match-card'>
-                <div class='match-num'>{salida_hoyo}</div>
-                <div class='team-box-l'>🔴 <span class='team-name'>LEONES: {l1_nom} ({l1_hcp}) / {l2_nom} ({l2_hcp})</span></div>
-                <div class='team-box-t'>🔵 <span class='team-name'>TOROS: {t1_nom} ({t1_hcp}) / {t2_nom} ({t2_hcp})</span></div>
+            <div style='background:white; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #ddd;'>
+                <b>{salida_hoyo}</b> | 🔴 Leones: {l1_nom} & {l2_nom} vs 🔵 Toros: {t1_nom} & {t2_nom}
             </div>
             """, unsafe_allow_html=True)
 
@@ -198,7 +193,7 @@ with tab_sorteo:
             st.warning("⚠️ No se encontraron suficientes jugadores.")
 
 # ==========================================
-# PESTAÑA 2: LEADERBOARD EN VIVO
+# PESTAÑA 2: LEADERBOARD EN VIVO (ESTILO TV PROFESIONAL)
 # ==========================================
 with tab_leaderboard:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -224,7 +219,7 @@ with tab_leaderboard:
             if not df_live.empty:
                 puntos_jornada_leones = 0.0
                 puntos_jornada_toros = 0.0
-                mobile_cards_html = ""
+                tv_tables_html = ""
                 
                 for idx, row in df_live.iterrows():
                     l6 = pd.to_numeric(row.get('Leones_H6'), errors='coerce')
@@ -260,12 +255,29 @@ with tab_leaderboard:
                     puntos_jornada_leones += pt_l
                     puntos_jornada_toros += pt_t
                     
-                    mobile_cards_html += f"""
-                    <div class='match-card'>
-                        <div class='match-num'>{row['Match']}</div>
-                        <div class='team-box-l'><span class='team-name team-red'>🔴 {row['Participante_Leones']}</span> <span class='badge-hcp'>HCP: {row['HCP_L']}</span></div>
-                        <div class='match-status-container'><span style='font-size:0.8rem; color:#555; font-weight:bold;'>ESTADO:</span><span class='status-badge'>{status}</span></div>
-                        <div class='team-box-t'><span class='team-name team-blue'>🔵 {row['Participante_Toros']}</span> <span class='badge-hcp'>HCP: {row['HCP_T']}</span></div>
+                    match_name = row['Match']
+                    jugador_leones = row['Participante_Leones']
+                    hcp_l = row['HCP_L']
+                    jugador_toros = row['Participante_Toros']
+                    hcp_t = row['HCP_T']
+                    
+                    # Estructura de tabla profesional estilo TV
+                    tv_tables_html += f"""
+                    <div style="font-size: 0.75rem; color: #555; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;">{match_name}</div>
+                    <div class='tv-match-table'>
+                        <div class='tv-row'>
+                            <div class='tv-cell-leones'>
+                                {jugador_leones}
+                                <span class='player-sub-l'>HCP: {hcp_l}</span>
+                            </div>
+                            <div class='tv-cell-status'>
+                                {status}
+                            </div>
+                            <div class='tv-cell-toros'>
+                                {jugador_toros}
+                                <span class='player-sub'>HCP: {hcp_t}</span>
+                            </div>
+                        </div>
                     </div>
                     """
                 
@@ -275,11 +287,11 @@ with tab_leaderboard:
                 st.markdown(f"""
                 <div class='tv-header'>
                     <div class='tv-title'>🏆 Presidents Cup</div>
-                    <div class='tv-subtitle'>Leaderboard Oficial en Vivo (Google Sheets)</div>
+                    <div class='tv-subtitle'>Leaderboard Oficial en Vivo</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                st.markdown(mobile_cards_html, unsafe_allow_html=True)
+                st.markdown(tv_tables_html, unsafe_allow_html=True)
                 
                 st.markdown(f"""
                 <div class='tv-footer-bar'>
@@ -290,7 +302,7 @@ with tab_leaderboard:
             else:
                 st.info("📌 La hoja de Google Sheets está vacía. Carga las partidas en la pestaña anterior.")
         except Exception as e:
-            st.warning("⚠ Esperando datos de Google Sheets...")
+            st.warning(f"⚠ Esperando datos de Google Sheets...")
         
     if auto_update:
         time.sleep(8)
