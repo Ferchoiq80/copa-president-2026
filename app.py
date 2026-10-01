@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 import time
+import json
+import base64
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -67,32 +69,18 @@ def cargar_datos():
 
 df_jugadores, error_msj = cargar_datos()
 
-# FUNCIÓN LIMPIADORA AUTOMÁTICA DE LA LLAVE PRIVADA (EVITA ERRORES PEM)
-def limpiar_private_key(pk):
-    if not pk:
-        return pk
-    pk = pk.strip('"\'')
-    pk = pk.replace('\\n', '\n').replace('\r\n', '\n')
-    lines = [line.strip() for line in pk.split('\n') if line.strip()]
-    
-    if not any(l.startswith('-----BEGIN') for l in lines):
-        lines.insert(0, '-----BEGIN PRIVATE KEY-----')
-    if not any(l.startswith('-----END') for l in lines):
-        lines.append('-----END PRIVATE KEY-----')
-        
-    return '\n'.join(lines) + '\n'
-
-# CONEXIÓN A GOOGLE SHEETS EN LÍNEA (CON SANITIZADOR DE CREDENCIALES)
+# CONEXIÓN A GOOGLE SHEETS MEDIANTE DECODIFICACIÓN BASE64 (CERO ERRORES PEM)
 def conectar_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         
-        creds_dict = dict(st.secrets["gcp_service_account"])
+        # Lee la cadena Base64 desde los secretos de Streamlit
+        b64_string = st.secrets["gcp_base64_json"]
         
-        # Limpieza estricta de la llave privada
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = limpiar_private_key(creds_dict["private_key"])
-            
+        # Decodifica la cadena a JSON puro de manera limpia
+        json_bytes = base64.b64decode(b64_string)
+        creds_dict = json.loads(json_bytes.decode('utf-8'))
+        
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         sheet = client.open("Copa President Live").sheet1
